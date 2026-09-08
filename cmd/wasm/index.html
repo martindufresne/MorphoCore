@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MorphoCore | Arène de Test WebAssembly & Mesh 2D</title>
+  <script src="wasm_exec.js"></script>
+  <style>
+    :root {
+      --bg-main: #0a0e17;
+      --bg-card: #111827;
+      --bg-card-hover: #172136;
+      --border-color: #1f2d47;
+      --border-accent: #2d3f63;
+      --text-main: #e2e8f0;
+      --text-muted: #94a3b8;
+      
+      --color-normal: #10b981;
+      --color-normal-bg: rgba(16, 185, 129, 0.12);
+      --color-normal-border: #059669;
+
+      --color-apoptose: #ef4444;
+      --color-apoptose-bg: rgba(239, 68, 68, 0.18);
+      --color-apoptose-border: #dc2626;
+
+      --color-mitose: #f59e0b;
+      --color-mitose-bg: rgba(245, 158, 11, 0.18);
+      --color-mitose-border: #d97706;
+
+      --color-routage: #06b6d4;
+      --color-routage-bg: rgba(6, 182, 212, 0.18);
+      --color-routage-border: #0891b2;
+
+      --family-soma: #3b82f6;
+      --family-axone: #8b5cf6;
+      --family-synapse: #ec4899;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 24px;
+      line-height: 1.5;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-color);
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-badge {
+      background: linear-gradient(135deg, #10b981, #06b6d4);
+      color: #000;
+      font-weight: 800;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .brand h1 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--color-normal);
+      box-shadow: 0 0 10px var(--color-normal);
+      animation: pulse-dot 2s infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 24px;
+      flex: 1;
+    }
+
+    @media (max-width: 1080px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .panel-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #f1f5f9;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Grille 3x3 Mesh */
+    .mesh-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 0;
+    }
+
+    .mesh-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 160px);
+      grid-template-rows: repeat(3, 130px);
+      gap: 16px;
+      position: relative;
+    }
+
+    @media (max-width: 600px) {
+      .mesh-grid {
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: repeat(3, 110px);
+        width: 100%;
+      }
+    }
+
+    .cell-node {
+      background: #0d1424;
+      border: 2px solid var(--border-color);
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.25s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cell-node:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+      border-color: #3b82f6;
+    }
+
+    .cell-node.state-Normal {
+      border-color: var(--color-normal-border);
+      background: var(--color-normal-bg);
+    }
+
+    .cell-node.state-Apoptose {
+      border-color: var(--color-apoptose-border);
+      background: var(--color-apoptose-bg);
+      animation: flash-red 0.5s ease;
+      box-shadow: 0 0 16px rgba(239, 68, 68, 0.4);
+    }
+
+    .cell-node.state-Mitose {
+      border-color: var(--color-mitose-border);
+      background: var(--color-mitose-bg);
+      animation: pulse-yellow 0.8s infinite alternate;
+      box-shadow: 0 0 16px rgba(245, 158, 11, 0.4);
+    }
+
+    .cell-node.state-Routage {
+      border-color: var(--color-routage-border);
+      background: var(--color-routage-bg);
+      box-shadow: 0 0 12px rgba(6, 182, 212, 0.35);
+    }
+
+    @keyframes flash-red {
+      0% { transform: scale(1.05); filter: brightness(1.5); }
+      100% { transform: scale(1); filter: brightness(1); }
+    }
+
+    @keyframes pulse-yellow {
+      0% { filter: brightness(1); }
+      100% { filter: brightness(1.3); }
+    }
+
+    .cell-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .cell-coord {
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .cell-family-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .badge-Soma {
+      background: rgba(59, 130, 246, 0.2);
+      color: var(--family-soma);
+      border: 1px solid rgba(59, 130, 246, 0.4);
+    }
+
+    .badge-Axone {
+      background: rgba(139, 92, 246, 0.2);
+      color: var(--family-axone);
+      border: 1px solid rgba(139, 92, 246, 0.4);
+    }
+
+    .badge-Synapse {
+      background: rgba(236, 72, 153, 0.2);
+      color: var(--family-synapse);
+      border: 1px solid rgba(236, 72, 153, 0.4);
+    }
+
+    .cell-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      margin: 6px 0;
+    }
+
+    .cell-state-text {
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.02em;
+    }
+
+    .cell-gen {
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .cell-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: ui-monospace, monospace;
+    }
+
+    .cell-role-tag {
+      font-size: 9px;
+      font-weight: 600;
+      opacity: 0.8;
+    }
+
+    /* Légende d'état */
+    .legend {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .legend-box {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+    }
+
+    /* Boutons et Panneau d'attaque */
+    .actions-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    button {
+      background: #1e293b;
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    button:hover {
+      background: #334155;
+      border-color: #475569;
+    }
+
+    button.btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+      border-color: rgba(239, 68, 68, 0.4);
+    }
+
+    button.btn-danger:hover {
+      background: rgba(239, 68, 68, 0.3);
+      border-color: #ef4444;
+    }
+
+    button.btn-primary {
+      background: rgba(16, 185, 129, 0.15);
+      color: #6ee7b7;
+      border-color: rgba(16, 185, 129, 0.4);
+    }
+
+    button.btn-primary:hover {
+      background: rgba(16, 185, 129, 0.3);
+      border-color: #10b981;
+    }
+
+    button.btn-warning {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fcd34d;
+      border-color: rgba(245, 158, 11, 0.4);
+    }
+
+    button.btn-warning:hover {
+      background: rgba(245, 158, 11, 0.3);
+      border-color: #f59e0b;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: #0d1424;
+      padding: 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+    }
+
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .control-label span.val {
+      color: #38bdf8;
+      font-family: ui-monospace, monospace;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      background: #1e293b;
+      border-radius: 3px;
+      outline: none;
+      accent-color: #10b981;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      background: #0d1424;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 8px 12px;
+      color: var(--text-main);
+      font-size: 13px;
+      outline: none;
+    }
+
+    input[type="text"]:focus {
+      border-color: #38bdf8;
+    }
+
+    /* Cartes de Métriques */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .metric-card {
+      background: #0d1424;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .metric-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .metric-value {
+      font-size: 20px;
+      font-weight: 700;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      color: #f8fafc;
+    }
+
+    .metric-value.highlight {
+      color: #10b981;
+    }
+
+    .metric-value.warn {
+      color: #f59e0b;
+    }
+
+    .metric-value.danger {
+      color: #ef4444;
+    }
+
+    /* Jauge de Pool */
+    .pool-bar-container {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .pool-bar {
+      height: 10px;
+      background: #1e293b;
+      border-radius: 5px;
+      overflow: hidden;
+      display: flex;
+    }
+
+    .pool-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #10b981, #06b6d4);
+      width: 50%;
+      transition: width 0.3s ease;
+    }
+
+    /* Journal des événements */
+    .events-log {
+      height: 180px;
+      background: #080d16;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 8px;
+      overflow-y: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .log-item {
+      padding: 2px 4px;
+      border-radius: 3px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .log-time {
+      color: #64748b;
+    }
+
+    .log-state-Normal { color: var(--color-normal); }
+    .log-state-Apoptose { color: var(--color-apoptose); font-weight: 700; }
+    .log-state-Mitose { color: var(--color-mitose); font-weight: 700; }
+    .log-state-Routage { color: var(--color-routage); }
+
+    footer {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <span class="brand-badge">TinyGo Wasm</span>
+      <h1>MorphoCore :: Arène Mesh 2D & Recyclage Cellulaire</h1>
+    </div>
+    <div class="status-pill">
+      <div class="status-dot" id="wasmDot"></div>
+      <span id="wasmStatusText">Chargement runtime Wasm...</span>
+    </div>
+  </header>
+
+  <div class="main-grid">
+    
+    <!-- Colonne Gauche : Grille 3x3 et Panneau de Commande -->
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+      
+      <!-- Grille Interactive 3x3 -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+            Matrice Cellulaire Mesh 2D (3x3) — Cliquez pour Tir de Précision
+          </div>
+          <span style="font-size: 12px; color: var(--text-muted);">Flux : (0,0) → (2,2)</span>
+        </div>
+
+        <div class="mesh-container">
+          <div class="mesh-grid" id="meshGrid">
+            <!-- 9 cellules générées dynamiquement -->
+          </div>
+
+          <div class="legend">
+            <div class="legend-item">
+              <div class="legend-box" style="background: var(--color-normal);"></div>
+              <span>Normal (Sain)</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-box" style="background: var(--color-apoptose);"></div>
+              <span>Apoptose (Élimination)</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-box" style="background: var(--color-mitose);"></div>
+              <span>Mitose (Régénération)</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-box" style="background: var(--color-routage);"></div>
+              <span>Routage (Gradient Dévié)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contrôles et Attaques Stochastiques -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            Commandes d'Injection & Scénarios d'Attaque
+          </div>
+        </div>
+
+        <div class="actions-bar">
+          <button class="btn-danger" id="btnRafale">
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"></path></svg>
+            Rafale Simultanée (1,1) & (1,2)
+          </button>
+          
+          <button id="btnRandomKill">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+            Tir Aléatoire 1 Cellule
+          </button>
+
+          <button class="btn-warning" id="btnToggleBombard">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <span id="bombardBtnText">Démarrer Bombardement</span>
+          </button>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 8px;">
+          <div class="control-group">
+            <div class="control-label">
+              <span>Cadence Flux Bombardement</span>
+              <span class="val" id="bombardRateVal">25 msg/s</span>
+            </div>
+            <input type="range" id="sliderBombardRate" min="5" max="100" value="25" step="5">
+          </div>
+
+          <div class="control-group">
+            <div class="control-label">
+              <span>Taux de Chaos (Corruption)</span>
+              <span class="val" id="chaosRateVal">0%</span>
+            </div>
+            <input type="range" id="sliderChaos" min="0" max="50" value="0" step="1">
+          </div>
+        </div>
+
+        <!-- Injection Manuelle -->
+        <div class="input-row">
+          <input type="text" id="manualPayload" placeholder="Payload manuel pour injection en (0,0)..." value="synthetic-packet-alpha">
+          <button class="btn-primary" id="btnInjectManual">Injecter (0,0)</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Colonne Droite : Métriques, Pool & Journal -->
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+      
+      <!-- Télémétrie en temps réel -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+            Télémétrie & Homéostasie
+          </div>
+          <button id="btnExportJSON" style="padding: 4px 8px; font-size: 11px;">
+            Export JSON
+          </button>
+        </div>
+
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-label">Débit Effectif</div>
+            <div class="metric-value highlight" id="mThroughput">0.0 msg/s</div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-label">Taux de Survie</div>
+            <div class="metric-value" id="mSurvival">100.0%</div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-label">MTTR Moyen</div>
+            <div class="metric-value warn" id="mMTTR">0.0 µs</div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-label">Apoptoses / Mitoses</div>
+            <div class="metric-value" id="mBioCycles">0 / 0</div>
+          </div>
+        </div>
+
+        <!-- Jauge CellPool Statique -->
+        <div class="control-group" style="margin-top: 4px;">
+          <div class="control-label">
+            <span>Slab Allocator (CellPool Statique)</span>
+            <span class="val" id="poolSlotsVal">9 / 18 slots</span>
+          </div>
+          <div class="pool-bar-container">
+            <div class="pool-bar">
+              <div class="pool-fill" id="poolFillBar" style="width: 50%;"></div>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-muted); font-family: ui-monospace, monospace;">
+            <span id="poolAcquired">Acquis: 9</span>
+            <span id="poolReleased">Restitués (memset): 0</span>
+            <span id="poolPeak">Pic: 9</span>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); font-family: ui-monospace, monospace;">
+          <span id="mEmitted">Émis: 0</span>
+          <span id="mDelivered">Livrés: 0</span>
+          <span id="mCorrupted">Corrompus: 0</span>
+        </div>
+      </div>
+
+      <!-- Journal d'Événements Cellulaires -->
+      <div class="panel" style="flex: 1;">
+        <div class="panel-header">
+          <div class="panel-title">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            Flux d'Événements Cellulaires
+          </div>
+          <span style="font-size: 11px; color: var(--text-muted);" id="eventCount">0 événements</span>
+        </div>
+
+        <div class="events-log" id="eventsLog">
+          <div class="log-item">
+            <span class="log-time">[BOOT]</span>
+            <span>En attente de démarrage du module Wasm...</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <footer>
+    <div>MorphoCore PoC — Invariants Mathématiques & Mitose Décentralisée sur TinyGo Wasm</div>
+    <div>Architecture Zero Heap Allocation Post-Boot • Slab Allocator 18 Slots</div>
+  </footer>
+
+  <script>
+    // État de la grille 3x3
+    const cellsData = {};
+    for (let x = 0; x < 3; x++) {
+      for (let y = 0; y < 3; y++) {
+        const fam = x === 0 ? "Soma" : (x === 2 ? "Synapse" : "Axone");
+        cellsData[`${x},${y}`] = {
+          x, y,
+          family: fam,
+          state: "Normal",
+          generation: 1
+        };
+      }
+    }
+
+    let isBombarding = false;
+    let eventLogCounter = 0;
+
+    // Construction du DOM de la grille 3x3
+    const gridContainer = document.getElementById("meshGrid");
+    for (let y = 0; y < 3; y++) {
+      for (let x = 0; x < 3; x++) {
+        const key = `${x},${y}`;
+        const data = cellsData[key];
+        
+        let role = "";
+        if (x === 0 && y === 0) role = "ENTRÉE ROOT";
+        else if (x === 2 && y === 2) role = "SORTIE SINK";
+
+        const node = document.createElement("div");
+        node.className = `cell-node state-Normal`;
+        node.id = `cell-${x}-${y}`;
+        node.innerHTML = `
+          <div class="cell-top">
+            <span class="cell-coord">(${x},${y})</span>
+            <span class="cell-family-badge badge-${data.family}">${data.family}</span>
+          </div>
+          <div class="cell-center">
+            <span class="cell-state-text" id="state-text-${x}-${y}">Normal</span>
+            <span class="cell-gen" id="gen-text-${x}-${y}">Gen 1</span>
+          </div>
+          <div class="cell-footer">
+            <span class="cell-role-tag">${role}</span>
+            <span style="font-size: 9px; opacity: 0.6;">Cliquer: Kill</span>
+          </div>
+        `;
+
+        // Clic sur cellule = Tir de précision
+        node.addEventListener("click", () => {
+          if (typeof morphoKillCell === "function") {
+            appendLog(`[TIR] Cible (${x},${y}) désignée pour apoptose forcée...`, "Apoptose");
+            morphoKillCell(x, y);
+          }
+        });
+
+        gridContainer.appendChild(node);
+      }
+    }
+
+    // Journal des événements
+    const eventsLog = document.getElementById("eventsLog");
+    const eventCountBadge = document.getElementById("eventCount");
+
+    function appendLog(msg, stateClass = "Normal") {
+      eventLogCounter++;
+      eventCountBadge.textContent = `${eventLogCounter} événements`;
+
+      const item = document.createElement("div");
+      item.className = "log-item";
+      const now = new Date();
+      const timeStr = now.toTimeString().split(" ")[0] + "." + String(now.getMilliseconds()).padStart(3, "0");
+
+      item.innerHTML = `
+        <span class="log-time">[${timeStr}]</span>
+        <span class="log-state-${stateClass}">${msg}</span>
+      `;
+      eventsLog.appendChild(item);
+      eventsLog.scrollTop = eventsLog.scrollHeight;
+    }
+
+    // Callback Global appelé par Go Wasm
+    window.onMorphoCellEvent = function(x, y, state, generation, mttr) {
+      const key = `${x},${y}`;
+      if (cellsData[key]) {
+        cellsData[key].state = state;
+        cellsData[key].generation = generation;
+      }
+
+      const node = document.getElementById(`cell-${x}-${y}`);
+      const stateText = document.getElementById(`state-text-${x}-${y}`);
+      const genText = document.getElementById(`gen-text-${x}-${y}`);
+
+      if (node && stateText && genText) {
+        node.className = `cell-node state-${state}`;
+        stateText.textContent = state;
+        genText.textContent = `Gen ${generation}`;
+      }
+
+      let extra = "";
+      if (mttr > 0 && state === "Mitose") {
+        extra = ` (MTTR: ${mttr.toFixed(0)} µs)`;
+      }
+      appendLog(`[CELL (${x},${y}) | Gen ${generation}] → État: ${state}${extra}`, state);
+    };
+
+    // Chargement et instanciation du module WebAssembly
+    const go = new Go();
+    const wasmDot = document.getElementById("wasmDot");
+    const wasmStatusText = document.getElementById("wasmStatusText");
+
+    async function initWasm() {
+      try {
+        let result;
+        if (WebAssembly.instantiateStreaming) {
+          try {
+            result = await WebAssembly.instantiateStreaming(fetch("morphocore.wasm"), go.importObject);
+          } catch (e) {
+            // Fallback pour serveurs locaux sans bon type MIME application/wasm
+            const resp = await fetch("morphocore.wasm");
+            const bytes = await resp.arrayBuffer();
+            result = await WebAssembly.instantiate(bytes, go.importObject);
+          }
+        } else {
+          const resp = await fetch("morphocore.wasm");
+          const bytes = await resp.arrayBuffer();
+          result = await WebAssembly.instantiate(bytes, go.importObject);
+        }
+
+        wasmDot.style.background = "#10b981";
+        wasmStatusText.textContent = "Wasm Actif (TinyGo 0.42.0)";
+        appendLog("[INIT] Module Wasm morphocore.wasm chargé et exécuté avec succès.", "Normal");
+
+        // Démarre l'exécution bloquante de la goroutine Wasm principale
+        go.run(result.instance);
+
+      } catch (err) {
+        console.error("Erreur de chargement Wasm:", err);
+        wasmDot.style.background = "#ef4444";
+        wasmStatusText.textContent = "Erreur Wasm: " + err.message;
+        appendLog("[ERREUR] Échec de chargement WebAssembly: " + err.message, "Apoptose");
+      }
+    }
+
+    initWasm();
+
+    // Boucle de mise à jour télémétrique (toutes les 150 ms)
+    setInterval(() => {
+      if (typeof morphoGetTelemetry !== "function") return;
+
+      try {
+        const rawJson = morphoGetTelemetry();
+        const data = JSON.parse(rawJson);
+        const t = data.telemetry;
+        const p = data.pool;
+
+        // Télémétrie
+        document.getElementById("mThroughput").textContent = `${t.throughput_msg_per_sec.toFixed(1)} msg/s`;
+        document.getElementById("mSurvival").textContent = `${t.survival_rate_percent.toFixed(1)}%`;
+        document.getElementById("mMTTR").textContent = `${t.mttr_microseconds.toFixed(1)} µs`;
+        document.getElementById("mBioCycles").textContent = `${t.total_apoptosis} / ${t.total_mitosis}`;
+        
+        document.getElementById("mEmitted").textContent = `Émis: ${t.total_emitted}`;
+        document.getElementById("mDelivered").textContent = `Livrés: ${t.total_delivered}`;
+        document.getElementById("mCorrupted").textContent = `Corrompus: ${t.total_corrupted}`;
+
+        // Slab Allocator Pool
+        document.getElementById("poolSlotsVal").textContent = `${p.active_count} / ${p.capacity} slots`;
+        const fillPct = (p.active_count / p.capacity) * 100;
+        document.getElementById("poolFillBar").style.width = `${fillPct}%`;
+        document.getElementById("poolAcquired").textContent = `Acquis: ${p.total_acquired}`;
+        document.getElementById("poolReleased").textContent = `Restitués: ${p.total_released}`;
+        document.getElementById("poolPeak").textContent = `Pic: ${p.max_active}`;
+
+      } catch (e) {
+        // En cas d'erreur de parse temporaire
+      }
+    }, 150);
+
+    // Contrôles d'interface
+    // 1. Rafale Simultanée (1,1) & (1,2)
+    document.getElementById("btnRafale").addEventListener("click", () => {
+      if (typeof morphoKillCell === "function") {
+        appendLog("[ATTAQUE] Lancement d'une rafale simultanée sur (1,1) [Axone] et (1,2) [Axone] !", "Apoptose");
+        morphoKillCell(1, 1);
+        morphoKillCell(1, 2);
+      }
+    });
+
+    // 2. Tir Aléatoire
+    document.getElementById("btnRandomKill").addEventListener("click", () => {
+      if (typeof morphoKillCell === "function") {
+        const rx = Math.floor(Math.random() * 3);
+        const ry = Math.floor(Math.random() * 3);
+        appendLog(`[TIR ALÉATOIRE] Impact sur coordonnée (${rx},${ry})...`, "Apoptose");
+        morphoKillCell(rx, ry);
+      }
+    });
+
+    // 3. Bombardement Continu
+    const btnToggleBombard = document.getElementById("btnToggleBombard");
+    const bombardBtnText = document.getElementById("bombardBtnText");
+    const sliderBombardRate = document.getElementById("sliderBombardRate");
+    const bombardRateVal = document.getElementById("bombardRateVal");
+
+    sliderBombardRate.addEventListener("input", (e) => {
+      const rate = parseInt(e.target.value, 10);
+      bombardRateVal.textContent = `${rate} msg/s`;
+      if (isBombarding && typeof morphoStartBombardment === "function") {
+        morphoStopBombardment();
+        morphoStartBombardment(rate);
+      }
+    });
+
+    btnToggleBombard.addEventListener("click", () => {
+      if (isBombarding) {
+        if (typeof morphoStopBombardment === "function") {
+          morphoStopBombardment();
+          isBombarding = false;
+          btnToggleBombard.className = "btn-warning";
+          bombardBtnText.textContent = "Démarrer Bombardement";
+          appendLog("[FLUX] Bombardement continu arrêté.", "Normal");
+        }
+      } else {
+        const rate = parseInt(sliderBombardRate.value, 10);
+        if (typeof morphoStartBombardment === "function") {
+          morphoStartBombardment(rate);
+          isBombarding = true;
+          btnToggleBombard.className = "btn-danger";
+          bombardBtnText.textContent = "Arrêter Bombardement";
+          appendLog(`[FLUX] Bombardement continu démarré à ${rate} msg/s.`, "Routage");
+        }
+      }
+    });
+
+    // 4. Slider de Chaos (0 à 50%)
+    const sliderChaos = document.getElementById("sliderChaos");
+    const chaosRateVal = document.getElementById("chaosRateVal");
+
+    sliderChaos.addEventListener("input", (e) => {
+      const pct = parseInt(e.target.value, 10);
+      chaosRateVal.textContent = `${pct}%`;
+      if (typeof morphoSetChaosRate === "function") {
+        morphoSetChaosRate(pct / 100.0);
+        appendLog(`[CHAOS] Taux de corruption stochastique ajusté à ${pct}%.`, pct > 0 ? "Mitose" : "Normal");
+      }
+    });
+
+    // 5. Injection Manuelle
+    const manualInput = document.getElementById("manualPayload");
+    document.getElementById("btnInjectManual").addEventListener("click", () => {
+      const val = manualInput.value.trim() || "manual-packet";
+      if (typeof morphoInjectPayload === "function") {
+        morphoInjectPayload(val);
+        appendLog(`[INJECTION] Paquet "${val}" injecté dans le nœud (0,0).`, "Normal");
+      }
+    });
+
+    // 6. Export du Rapport JSON
+    document.getElementById("btnExportJSON").addEventListener("click", () => {
+      if (typeof morphoGetTelemetry !== "function") return;
+      const jsonStr = morphoGetTelemetry();
+      const blob = new Blob([jsonStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      a.href = url;
+      a.download = `morphocore_telemetry_${timestamp}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      appendLog("[EXPORT] Rapport de session JSON téléchargé.", "Normal");
+    });
+  </script>
+</body>
+</html>
