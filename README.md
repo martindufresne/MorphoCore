@@ -3,7 +3,6 @@
 > **Moteur de Réseau Morphogénétique Concurrente, Décentralisé et Auto-Cicatrisant**  
 > *Compatible Go standard, TinyGo bare-metal et WebAssembly (Wasm)*
 
-[![Live Demo](https://img.shields.io/badge/Live_Demo-GitHub_Pages-2563eb?logo=googlechrome&logoColor=white)](https://martindufresne.github.io/MorphoCore/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Go Test](https://img.shields.io/badge/Go_Test-Pass-10b981?logo=go&logoColor=white)](.)
 [![TinyGo](https://img.shields.io/badge/TinyGo-0.42.0-blue?logo=webassembly&logoColor=white)](.)
